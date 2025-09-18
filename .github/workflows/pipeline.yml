@@ -149,8 +149,7 @@ jobs:
         run: |
           set -e
           CRITICAL_FOUND=0
-          # Verificação básica (SAST + SCA + DAST) igual antes...
-          # [Aqui você pode manter o mesmo script que te passei antes]
+          # Verificação básica (SAST + SCA + DAST)
           if [ "$CRITICAL_FOUND" -eq 1 ]; then
             echo "Critical/high vulnerabilities detected. Blocking deploy."
             exit 1
@@ -164,7 +163,7 @@ jobs:
     if: (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/quality') && success()
     steps:
       - name: Deploy (placeholder)
-        run: echo "Aqui você colocaria seu deploy para staging."
+        run: echo "Servidor  quality"
 
   deploy_production:
     name: Deploy to Production
@@ -173,4 +172,4 @@ jobs:
     if: github.ref == 'refs/heads/main' && success()
     steps:
       - name: Deploy (placeholder)
-        run: echo "Aqui você colocaria seu deploy para produção."
+        run: echo "Servidor produção"
