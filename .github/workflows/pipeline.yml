@@ -102,15 +102,6 @@ jobs:
             --format JSON \
             --out $REPORT_DIR || true
 
-      - name: Optional Snyk (if token available)
-        if: ${{ secrets.SNYK_TOKEN != '' }}
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        run: |
-          mkdir -p $REPORT_DIR
-          curl -sL https://static.snyk.io/cli/latest/snyk-linux -o snyk && chmod +x snyk
-          ./snyk test --json > $REPORT_DIR/snyk-report.json || true
-
       - name: Upload SCA artifact
         uses: actions/upload-artifact@v4
         with:
