@@ -63,7 +63,7 @@ jobs:
           name: sast-report
           path: $REPORT_DIR
       - name: Upload SARIF to GitHub Security tab
-        uses: github/code-scanning/upload-sarif@v2
+        uses: github/code-scanning/upload-sarif@v1
         with:
           sarif_file: ${{ env.REPORT_DIR }}/semgrep-report.sarif
 
