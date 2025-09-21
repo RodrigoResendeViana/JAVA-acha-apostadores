@@ -91,6 +91,12 @@
 			<artifactId>flyway-core</artifactId>
 			<version>10.17.0</version>
 		</dependency>
+
+		<!-- Spring Boot Actuator for health endpoints -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-actuator</artifactId>
+		</dependency>
 	</dependencies>
 
 	<build>

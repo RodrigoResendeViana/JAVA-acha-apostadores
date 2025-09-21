@@ -89,7 +89,8 @@ jobs:
         run: |
           nohup java -jar target/*.jar > app.log 2>&1 &
           sleep 20
-          curl -sSf http://localhost:8080 || (cat app.log && exit 1)
+          # check the actuator health endpoint; this returns 200 when healthy
+          curl -sSf http://localhost:8080/actuator/health || (cat app.log && exit 1)
 
   # ---------------------------
   # DAST - OWASP ZAP
