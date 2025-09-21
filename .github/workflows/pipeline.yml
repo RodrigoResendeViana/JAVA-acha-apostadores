@@ -40,6 +40,20 @@ jobs:
   build-and-run:
     name: Build & Run Java App
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: rodrigoviana
+          POSTGRES_PASSWORD: dfr16464
+          POSTGRES_DB: challenge2025
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U rodrigoviana -d challenge2025" \
+          --health-interval 5s \
+          --health-timeout 5s \
+          --health-retries 20
 
     steps:
       - uses: actions/checkout@v4
@@ -53,7 +67,25 @@ jobs:
       - name: Build with Maven (skip tests)
         run: mvn -B clean package -DskipTests
 
+      - name: Wait for Postgres
+        env:
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: rodrigoviana
+          PGPASSWORD: dfr16464
+        run: |
+          echo "Waiting for Postgres to be ready..."
+          for i in {1..30}; do
+            pg_isready -h localhost -p 5432 -U "$PGUSER" -d challenge2025 && break
+            sleep 2
+          done
+          pg_isready -h localhost -p 5432 -U "$PGUSER" -d challenge2025 || (echo "Postgres not ready" && exit 1)
+
       - name: Start App
+        env:
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/challenge2025
+          SPRING_DATASOURCE_USERNAME: rodrigoviana
+          SPRING_DATASOURCE_PASSWORD: dfr16464
         run: |
           nohup java -jar target/*.jar > app.log 2>&1 &
           sleep 20
