@@ -43,6 +43,15 @@ jobs:
           distribution: temurin
           java-version: 21
 
+      - name: Diagnose Java and Maven
+        run: |
+          echo "=== java -version ==="
+          java -version || true
+          echo "=== javac -version ==="
+          javac -version || true
+          echo "=== mvn -version ==="
+          mvn -version || true
+
       - name: Build (Maven)
         run: mvn -B clean verify
 
@@ -52,7 +61,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: build-log
-          path: $REPORT_DIR
+          path: ${{ env.REPORT_DIR }}
 
   sast:
     name: SAST — Semgrep
@@ -76,11 +85,11 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: sast-report
-          path: $REPORT_DIR
+          path: ${{ env.REPORT_DIR }}
 
       - name: Upload SARIF to GitHub Code Scanning
         if: ${{ always() }}
-        uses: github/code-scanning/upload-sarif@v3
+        uses: github/code-scanning/upload-sarif@main
         with:
           sarif_file: ${{ env.REPORT_DIR }}/semgrep-report.sarif
 
@@ -106,7 +115,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: sca-report
-          path: $REPORT_DIR
+          path: ${{ env.REPORT_DIR }}
 
   dast:
     name: DAST — OWASP ZAP (quality branch only)
@@ -146,7 +155,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: dast-report
-          path: $REPORT_DIR
+          path: ${{ env.REPORT_DIR }}
 
       - name: Stop app
         run: |
