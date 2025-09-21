@@ -92,15 +92,6 @@ jobs:
           # check the actuator health endpoint; this returns 200 when healthy
           curl -sSf http://localhost:8080/actuator/health || (cat app.log && exit 1)
 
-  # ---------------------------
-  # DAST - OWASP ZAP
-  # ---------------------------
-  dast:
-    name: DAST - OWASP ZAP Scan
-    runs-on: ubuntu-latest
-    needs: build-and-run
-
-    steps:
       - name: Run ZAP Baseline Scan
         uses: zaproxy/action-baseline@v0.14.0
         with:
@@ -109,6 +100,10 @@ jobs:
           issue_title: 'Relatório de Vulnerabilidades DAST'
           fail_action: true
 
+  # ---------------------------
+  # DAST - OWASP ZAP
+  # (moved into build-and-run so the scanner can reach localhost)
+  # ---------------------------
   # ---------------------------
   # SCA - Dependency Check
   # ---------------------------
@@ -119,20 +114,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download Dependency-Check
-        run: |
-          curl -L https://github.com/jeremylong/DependencyCheck/releases/download/v10.0.2/dependency-check-10.0.2-release.zip -o dc.zip
-          unzip -q dc.zip -d dependency-check
-
-      - name: Run Dependency-Check Scan
-        run: |
-          mkdir -p reports
-          dependency-check/dependency-check/bin/dependency-check.sh \
-            --project "GamblersApp" \
-            --scan . \
-            --format "HTML" \
-            --out reports \
-            --failOnCVSS 7.0
+      - name: Run Dependency-Check Action
+        uses: jeremylong/dependency-check-action@v2
+        with:
+          scan: '.'
+          format: 'HTML'
+          outputDirectory: 'reports'
+          failOnCVSS: '7.0'
+        env:
+          # Optionally provide an NVD API key to speed updates and reduce failures
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
 
       - name: Upload SCA Report
         uses: actions/upload-artifact@v4
