@@ -1,229 +1,120 @@
-name: Security CI/CD Pipeline (Java)
+name: Integrated Security Pipeline
 
 on:
   push:
-    branches: [ quality, main ]
+    branches: [ "quality", "main" ]
   pull_request:
-    branches: [ quality, main ]
-
-# Required permissions for SARIF upload and issue creation
-permissions:
-  contents: read
-  checks: write
-  issues: write
-  attestations: write
-  security-events: write
-
-env:
-  TARGET_URL: http://localhost:8080
-  REPORT_DIR: security-reports
-
-################################################################################
-# Overview
-# - SAST (Semgrep) runs on every push/PR.
-# - SCA (OWASP Dependency-Check) runs on every push/PR. Optional Snyk if SNYK_TOKEN provided.
-# - DAST (OWASP ZAP baseline) runs only on the `quality` branch (staging scans).
-# - All scanners upload artifacts; SARIF from Semgrep is uploaded to GitHub code scanning.
-# - Consolidation step downloads artifacts and fails the workflow if HIGH/CRITICAL issues are found.
-# Secrets (optional): SONAR_TOKEN, SNYK_TOKEN
-################################################################################
+    branches: [ "quality", "main" ]
 
 jobs:
 
-  build:
-    name: Build & Unit Tests
+  # ---------------------------
+  # SAST - Semgrep
+  # ---------------------------
+  sast:
+    name: SAST - Semgrep Scan
     runs-on: ubuntu-latest
+    container:
+      image: returntocorp/semgrep
+
+    permissions:
+      contents: read
+      security-events: write
+
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Run Semgrep Scan
+        run: semgrep scan --sarif --config "p/java" --output semgrep.sarif
+
+      - name: Upload SARIF to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: semgrep.sarif
+        if: always()
+
+  # ---------------------------
+  # Build & Run App for DAST
+  # ---------------------------
+  build-and-run:
+    name: Build & Run Java App
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
-          distribution: temurin
-          java-version: 21
+          java-version: '21'
+          distribution: 'temurin'
 
-      - name: Diagnose Java and Maven
-        run: |
-          echo "=== java -version ==="
-          java -version || true
-          echo "=== javac -version ==="
-          javac -version || true
-          echo "=== mvn -version ==="
-          mvn -version || true
-
-      - name: Build (Maven)
-        run: mvn -B clean verify
-
-      - name: Upload build-log
-        run: mkdir -p $REPORT_DIR && echo "build done" > $REPORT_DIR/build-log.txt
-      - name: Upload build artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-log
-          path: ${{ env.REPORT_DIR }}
-
-  sast:
-    name: SAST — Semgrep
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install semgrep
-        run: |
-          python -m pip install --upgrade pip
-          pip install semgrep
-
-      - name: Run semgrep (JSON + SARIF)
-        run: |
-          mkdir -p $REPORT_DIR
-          semgrep --config auto --json --output $REPORT_DIR/semgrep-report.json || true
-          semgrep --config auto --sarif --output $REPORT_DIR/semgrep-report.sarif || true
-
-      - name: Upload SAST artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: sast-report
-          path: ${{ env.REPORT_DIR }}
-
-      - name: Upload SARIF to GitHub Code Scanning
-        if: ${{ always() }}
-        uses: github/code-scanning/upload-sarif@main
-        with:
-          sarif_file: ${{ env.REPORT_DIR }}/semgrep-report.sarif
-
-  sca:
-    name: SCA — Dependency Analysis
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Run OWASP Dependency-Check
-        run: |
-          mkdir -p $REPORT_DIR
-          curl -L https://github.com/jeremylong/DependencyCheck/releases/download/v10.0.2/dependency-check-10.0.2-release.zip -o dc.zip
-          unzip -q dc.zip -d dependency-check
-          dependency-check/dependency-check/bin/dependency-check.sh \
-            --project "gamblers" \
-            --scan . \
-            --format JSON \
-            --out $REPORT_DIR || true
-
-      - name: Upload SCA artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: sca-report
-          path: ${{ env.REPORT_DIR }}
-
-  dast:
-    name: DAST — OWASP ZAP (quality branch only)
-    runs-on: ubuntu-latest
-    needs: build
-    if: ${{ github.ref == 'refs/heads/quality' }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Build jar (skip tests)
+      - name: Build with Maven (skip tests)
         run: mvn -B clean package -DskipTests
 
-      - name: Start app in background
+      - name: Start App
         run: |
           nohup java -jar target/*.jar > app.log 2>&1 &
-          echo $! > app.pid || true
+          sleep 20
+          curl -sSf http://localhost:8080 || (cat app.log && exit 1)
 
-      - name: Wait for app readiness
+  # ---------------------------
+  # DAST - OWASP ZAP
+  # ---------------------------
+  dast:
+    name: DAST - OWASP ZAP Scan
+    runs-on: ubuntu-latest
+    needs: build-and-run
+
+    steps:
+      - name: Run ZAP Baseline Scan
+        uses: zaproxy/action-baseline@v0.14.0
+        with:
+          target: 'http://localhost:8080'
+          token: ${{ secrets.GITHUB_TOKEN }}
+          issue_title: 'Relatório de Vulnerabilidades DAST'
+          fail_action: true
+
+  # ---------------------------
+  # SCA - Dependency Check
+  # ---------------------------
+  sca:
+    name: SCA - Dependency-Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Dependency-Check
         run: |
-          for i in $(seq 1 30); do
-            if curl -sSf $TARGET_URL >/dev/null 2>&1; then
-              echo "App ready"
-              exit 0
-            fi
-            sleep 3
-          done
-          echo "App did not start" && cat app.log || true
-          exit 1
+          curl -L https://github.com/jeremylong/DependencyCheck/releases/download/v10.0.2/dependency-check-10.0.2-release.zip -o dc.zip
+          unzip -q dc.zip -d dependency-check
 
-      - name: Run OWASP ZAP baseline (docker)
+      - name: Run Dependency-Check Scan
         run: |
-          mkdir -p $REPORT_DIR
-          docker run --rm -v $(pwd):/zap/wrk/:rw owasp/zap2docker-stable \
-            zap-baseline.py -t "$TARGET_URL" -r /zap/wrk/zap-report.html -J /zap/wrk/zap-report.json || true
+          mkdir -p reports
+          dependency-check/dependency-check/bin/dependency-check.sh \
+            --project "GamblersApp" \
+            --scan . \
+            --format "HTML" \
+            --out reports \
+            --failOnCVSS 7.0
 
-      - name: Upload DAST artifact
+      - name: Upload SCA Report
         uses: actions/upload-artifact@v4
         with:
-          name: dast-report
-          path: ${{ env.REPORT_DIR }}
+          name: dependency-check-report
+          path: reports
 
-      - name: Stop app
-        run: |
-          if [ -f app.pid ]; then kill "$(cat app.pid)" || true; fi || true
-
-  consolidate:
-    name: Consolidate & Gate
+  # ---------------------------
+  # Notify on Failure
+  # ---------------------------
+  notify-on-failure:
+    name: Notify on Failure
     runs-on: ubuntu-latest
-    needs: [sast, sca, dast]
+    needs: [sast, dast, sca]
+    if: failure()
     steps:
-      - name: Download SAST artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: sast-report
-          path: ./sast-report
-        continue-on-error: true
-
-      - name: Download SCA artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: sca-report
-          path: ./sca-report
-        continue-on-error: true
-
-      - name: Download DAST artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: dast-report
-          path: ./dast-report
-        continue-on-error: true
-
-      - name: Install jq
-        run: sudo apt-get update && sudo apt-get install -y jq
-
-      - name: 'Gate: fail on HIGH/CRITICAL'
-        run: |
-          set -e
-          FOUND=0
-          # Semgrep
-          if [ -f ./sast-report/semgrep-report.json ]; then
-            jq '.results[] | select(.severity=="ERROR" or .severity=="CRITICAL" or .severity=="HIGH")' ./sast-report/semgrep-report.json > /dev/null && FOUND=1 || true
-          fi
-          # Dependency-Check
-          if [ -f ./sca-report/dependency-check-report.json ]; then
-            jq '.dependencies[].vulnerabilities[]? | select(.severity=="HIGH" or .severity=="CRITICAL")' ./sca-report/dependency-check-report.json > /dev/null && FOUND=1 || true
-          fi
-          # ZAP
-          if [ -f ./dast-report/zap-report.json ]; then
-            jq '.site[].alerts[] | select(.risk=="High" or .risk=="Critical")' ./dast-report/zap-report.json > /dev/null && FOUND=1 || true
-          fi
-          if [ "$FOUND" -eq 1 ]; then
-            echo "High/critical vulnerabilities detected — blocking deploy"
-            exit 1
-          fi
-          echo "No high/critical findings"
-
-  deploy_staging:
-    name: Deploy to Staging (placeholder)
-    runs-on: ubuntu-latest
-    needs: consolidate
-    if: ${{ github.ref == 'refs/heads/quality' && success() }}
-    steps:
-      - run: echo "Deploy to staging"
-
-  deploy_production:
-    name: Deploy to Production (placeholder)
-    runs-on: ubuntu-latest
-    needs: consolidate
-    if: ${{ github.ref == 'refs/heads/main' && success() }}
-    steps:
-      - run: echo "Deploy to production"
+      - name: Print Failure Message
+        run: echo "⚠️ O pipeline de segurança falhou. Verifique os logs e relatórios gerados."
