@@ -126,10 +126,12 @@ jobs:
             --enableExperimental
             --nvdValidForHours 24
             --failOnCVSS 7.0
-            --disableAnalyzer org.owasp.dependencycheck.analyzer.OssIndexAnalyzer
         env:
           # Optionally provide an NVD API key to speed updates and reduce failures
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+          # Optional OSS Index credentials to enable Sonatype OSS Index analyzer
+          OSSINDEX_USERNAME: ${{ secrets.OSSINDEX_USERNAME }}
+          OSSINDEX_TOKEN: ${{ secrets.OSSINDEX_TOKEN }}
 
       - name: Upload SCA Report
         uses: actions/upload-artifact@v4
