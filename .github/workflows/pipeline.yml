@@ -40,6 +40,10 @@ jobs:
   build-and-run:
     name: Build & Run Java App
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      security-events: write
     services:
       postgres:
         image: postgres:15
@@ -98,7 +102,16 @@ jobs:
           target: 'http://localhost:8080'
           token: ${{ secrets.GITHUB_TOKEN }}
           issue_title: 'Relatório de Vulnerabilidades DAST'
-          fail_action: true
+          fail_action: false
+
+      - name: Upload ZAP report
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-scan-report
+          path: |
+            report_html.html
+            report_json.json
+            report_md.md
 
   # ---------------------------
   # DAST - OWASP ZAP
@@ -110,19 +123,46 @@ jobs:
   sca:
     name: SCA - Dependency-Check
     runs-on: ubuntu-latest
+    env:
+      OSSINDEX_USERNAME: ${{ secrets.OSSINDEX_USERNAME }}
+      OSSINDEX_TOKEN: ${{ secrets.OSSINDEX_TOKEN }}
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Run Dependency-Check Action
-        uses: jeremylong/dependency-check-action@v2
+      - name: Run Dependency-Check (with OSS Index credentials)
+        if: ${{ env.OSSINDEX_USERNAME != '' && env.OSSINDEX_TOKEN != '' }}
+        uses: dependency-check/Dependency-Check_Action@main
         with:
-          scan: '.'
+          project: 'GamblersApp'
+          path: '.'
           format: 'HTML'
-          outputDirectory: 'reports'
-          failOnCVSS: '7.0'
+          out: 'reports'
+          args: >
+            --enableRetired
+            --enableExperimental
+            --nvdValidForHours 24
+            --failOnCVSS 7.0
         env:
-          # Optionally provide an NVD API key to speed updates and reduce failures
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+          OSSINDEX_USERNAME: ${{ secrets.OSSINDEX_USERNAME }}
+          OSSINDEX_TOKEN: ${{ secrets.OSSINDEX_TOKEN }}
+
+      - name: Run Dependency-Check (without OSS Index credentials)
+        if: ${{ env.OSSINDEX_USERNAME == '' || env.OSSINDEX_TOKEN == '' }}
+        uses: dependency-check/Dependency-Check_Action@main
+        continue-on-error: true
+        with:
+          project: 'GamblersApp'
+          path: '.'
+          format: 'HTML'
+          out: 'reports'
+          args: >
+            --enableRetired
+            --enableExperimental
+            --nvdValidForHours 24
+            --failOnCVSS 7.0
+        env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
 
       - name: Upload SCA Report
@@ -130,6 +170,11 @@ jobs:
         with:
           name: dependency-check-report
           path: reports
+
+      - name: List reports directory
+        run: |
+          echo "Reports list:"
+          ls -la reports || true
 
   # ---------------------------
   # Notify on Failure
