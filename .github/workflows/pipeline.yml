@@ -120,12 +120,15 @@ jobs:
           project: 'GamblersApp'
           path: '.'
           format: 'HTML'
-          out: 'reports/dependency-check-report.html'
+          out: 'reports'
           args: >
             --enableRetired
             --enableExperimental
             --nvdValidForHours 24
             --failOnCVSS 7.0
+        env:
+          # Optionally provide an NVD API key to speed updates and reduce failures
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
 
       - name: Upload SCA Report
         uses: actions/upload-artifact@v4
