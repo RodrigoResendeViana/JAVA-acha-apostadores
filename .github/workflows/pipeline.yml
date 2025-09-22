@@ -114,12 +114,15 @@ jobs:
   sca:
     name: SCA - Dependency-Check
     runs-on: ubuntu-latest
+    env:
+      OSSINDEX_USERNAME: ${{ secrets.OSSINDEX_USERNAME }}
+      OSSINDEX_TOKEN: ${{ secrets.OSSINDEX_TOKEN }}
 
     steps:
       - uses: actions/checkout@v4
 
       - name: Run Dependency-Check (with OSS Index credentials)
-        if: ${{ secrets.OSSINDEX_USERNAME && secrets.OSSINDEX_TOKEN }}
+        if: ${{ env.OSSINDEX_USERNAME != '' && env.OSSINDEX_TOKEN != '' }}
         uses: dependency-check/Dependency-Check_Action@main
         with:
           project: 'GamblersApp'
@@ -137,7 +140,7 @@ jobs:
           OSSINDEX_TOKEN: ${{ secrets.OSSINDEX_TOKEN }}
 
       - name: Run Dependency-Check (without OSS Index credentials)
-        if: ${{ !secrets.OSSINDEX_USERNAME || !secrets.OSSINDEX_TOKEN }}
+        if: ${{ env.OSSINDEX_USERNAME == '' || env.OSSINDEX_TOKEN == '' }}
         uses: dependency-check/Dependency-Check_Action@main
         continue-on-error: true
         with:
