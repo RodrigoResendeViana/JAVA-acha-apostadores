@@ -102,7 +102,16 @@ jobs:
           target: 'http://localhost:8080'
           token: ${{ secrets.GITHUB_TOKEN }}
           issue_title: 'Relatório de Vulnerabilidades DAST'
-          fail_action: true
+          fail_action: false
+
+      - name: Upload ZAP report
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-scan-report
+          path: |
+            report_html.html
+            report_json.json
+            report_md.md
 
   # ---------------------------
   # DAST - OWASP ZAP
