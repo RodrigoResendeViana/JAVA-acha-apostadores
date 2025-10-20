@@ -1,6 +1,7 @@
 package br.com.fiap.challenge.gamblers.entities.dtos;
 
 import lombok.*;
+import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -10,6 +11,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Schema(description = "Representação de um usuário retornada pela API")
 public class UserDTO {
     private UUID id;
     private String name;
