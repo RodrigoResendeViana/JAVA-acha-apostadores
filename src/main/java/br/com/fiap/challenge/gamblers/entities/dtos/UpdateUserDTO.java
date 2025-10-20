@@ -3,12 +3,14 @@ package br.com.fiap.challenge.gamblers.entities.dtos;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Size;
 import lombok.*;
+import io.swagger.v3.oas.annotations.media.Schema;
 
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Schema(description = "Dados para atualização parcial de um usuário")
 public class UpdateUserDTO {
     @Size(max = 100)
     private String name;

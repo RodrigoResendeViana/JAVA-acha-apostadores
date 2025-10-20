@@ -5,6 +5,7 @@ import br.com.fiap.challenge.gamblers.entities.dtos.CreateUserDTO;
 import br.com.fiap.challenge.gamblers.entities.dtos.UserDTO;
 import br.com.fiap.challenge.gamblers.exception.NotFoundException;
 import br.com.fiap.challenge.gamblers.repositories.UserRepository;
+import br.com.fiap.challenge.gamblers.interfaces.IUserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -14,9 +15,9 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
-public class UserService {
+public class UserService implements IUserService {
     private final UserRepository userRepository;
-    private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+    private final BCryptPasswordEncoder passwordEncoder;
 
     public UserDTO create(CreateUserDTO dto) {
         User user = User.builder()
@@ -38,7 +39,16 @@ public class UserService {
     }
 
     public java.util.List<UserDTO> findAll() {
-        return userRepository.findAll().stream().map(this::toDTO).toList();
+        return findAll(null, null);
+    }
+
+    @Override
+    public java.util.List<UserDTO> findAll(String name, String email) {
+        return userRepository.findAll().stream()
+                .filter(u -> name == null || u.getName().toLowerCase().contains(name.toLowerCase()))
+                .filter(u -> email == null || u.getEmail().toLowerCase().contains(email.toLowerCase()))
+                .map(this::toDTO)
+                .toList();
     }
 
     public UserDTO update(UUID id, br.com.fiap.challenge.gamblers.entities.dtos.UpdateUserDTO dto) {
