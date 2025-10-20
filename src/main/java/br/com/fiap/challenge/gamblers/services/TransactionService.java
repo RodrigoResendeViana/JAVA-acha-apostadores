@@ -6,6 +6,7 @@ import br.com.fiap.challenge.gamblers.entities.dtos.CreateTransactionDTO;
 import br.com.fiap.challenge.gamblers.entities.dtos.TransactionDTO;
 import br.com.fiap.challenge.gamblers.exception.NotFoundException;
 import br.com.fiap.challenge.gamblers.repositories.TransactionRepository;
+import br.com.fiap.challenge.gamblers.interfaces.ITransactionService;
 import br.com.fiap.challenge.gamblers.repositories.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -17,7 +18,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-public class TransactionService {
+public class TransactionService implements ITransactionService {
     private final TransactionRepository transactionRepository;
     private final UserRepository userRepository;
 
@@ -41,7 +42,16 @@ public class TransactionService {
     }
 
     public List<TransactionDTO> findAll() {
-        return transactionRepository.findAll().stream().map(this::toDTO).collect(Collectors.toList());
+        return findAll(null, null);
+    }
+
+    @Override
+    public List<TransactionDTO> findAll(String description, String type) {
+        return transactionRepository.findAll().stream()
+                .filter(tx -> description == null || tx.getDescription().toLowerCase().contains(description.toLowerCase()))
+                .filter(tx -> type == null || tx.getType().name().equalsIgnoreCase(type))
+                .map(this::toDTO)
+                .collect(Collectors.toList());
     }
 
     public TransactionDTO findById(UUID id) {
