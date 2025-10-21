@@ -94,12 +94,12 @@ jobs:
           python3 -m pip install --upgrade pip
           pip install semgrep
 
-      - name: Run Semgrep (scan for HIGH severity issues)
+      - name: Run Semgrep (scan for ERROR severity issues)
         run: |
           # Generate SARIF file for all findings
           semgrep scan --sarif --config "p/java" --output semgrep_unit.sarif .
-          # Check for HIGH severity issues and fail if found
-          semgrep scan --config "p/java" --severity HIGH . || (echo "HIGH severity issues found!" && exit 1)
+          # Check for ERROR severity issues and fail if found
+          semgrep scan --config "p/java" --severity ERROR . || (echo "ERROR severity security issues found!" && exit 1)
 
       - name: Upload Semgrep SARIF from unit stage
         uses: github/codeql-action/upload-sarif@v3
