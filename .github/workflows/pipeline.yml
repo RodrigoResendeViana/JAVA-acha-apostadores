@@ -128,7 +128,7 @@ jobs:
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U rodrigoviana -d challenge2025"
+          --health-cmd pg_isready
           --health-interval 5s
           --health-timeout 5s
           --health-retries 20
@@ -151,13 +151,14 @@ jobs:
           PGPORT: 5432
           PGUSER: ${{ secrets.POSTGRES_USER }}
           PGPASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          PGDATABASE: ${{ secrets.POSTGRES_DB }}
         run: |
           echo "Waiting for Postgres to be ready..."
           for i in {1..30}; do
-            pg_isready -h localhost -p 5432 -U "$PGUSER" -d challenge2025 && break
+            pg_isready && break
             sleep 2
           done
-          pg_isready -h localhost -p 5432 -U "$PGUSER" -d challenge2025 || (echo "Postgres not ready" && exit 1)
+          pg_isready || (echo "Postgres not ready" && exit 1)
 
       - name: Start App
         env:
