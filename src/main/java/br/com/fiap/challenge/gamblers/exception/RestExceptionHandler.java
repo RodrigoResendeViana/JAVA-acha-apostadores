@@ -1,5 +1,7 @@
 package br.com.fiap.challenge.gamblers.exception;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -14,6 +16,8 @@ import java.util.Map;
 
 @RestControllerAdvice
 public class RestExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(RestExceptionHandler.class);
 
     @ExceptionHandler(NotFoundException.class)
     public ResponseEntity<Object> handleNotFound(NotFoundException ex) {
@@ -37,5 +41,14 @@ public class RestExceptionHandler {
             errors.put(fieldName, message);
         });
         return new ResponseEntity<>(errors, HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<Object> handleAll(Exception ex) {
+        // Log full exception server-side but return a generic message to clients
+        log.error("Unexpected error handling request", ex);
+        Map<String, Object> body = new HashMap<>();
+        body.put("message", "Internal server error");
+        return new ResponseEntity<>(body, HttpStatus.INTERNAL_SERVER_ERROR);
     }
 }
