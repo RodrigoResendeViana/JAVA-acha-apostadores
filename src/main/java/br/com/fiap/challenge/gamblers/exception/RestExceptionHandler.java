@@ -10,6 +10,9 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -17,9 +20,7 @@ import java.util.Map;
 @RestControllerAdvice
 public class RestExceptionHandler {
 
-    private static final Logger log = LoggerFactory.getLogger(RestExceptionHandler.class);
-
-    @ExceptionHandler(NotFoundException.class)
+    private static final Logger log = LoggerFactory.getLogger(RestExceptionHandler.class);    @ExceptionHandler(NotFoundException.class)
     public ResponseEntity<Object> handleNotFound(NotFoundException ex) {
         Map<String, Object> body = new HashMap<>();
         body.put("message", ex.getMessage());
@@ -31,9 +32,15 @@ public class RestExceptionHandler {
         Map<String, Object> body = new HashMap<>();
         body.put("message", ex.getMessage());
         return new ResponseEntity<>(body, HttpStatus.BAD_REQUEST);
+    }    @ExceptionHandler({BadCredentialsException.class, AuthenticationException.class, UsernameNotFoundException.class})
+    public ResponseEntity<Object> handleAuthenticationException(Exception ex) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("message", "Invalid credentials");
+        return new ResponseEntity<>(body, HttpStatus.UNAUTHORIZED);
     }
 
-    protected ResponseEntity<Object> handleMethodArgumentNotValid(MethodArgumentNotValidException ex, HttpHeaders headers, HttpStatus status, WebRequest request) {
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    protected ResponseEntity<Object> handleMethodArgumentNotValid(MethodArgumentNotValidException ex) {
         Map<String, String> errors = new HashMap<>();
         ex.getBindingResult().getAllErrors().forEach(error -> {
             String fieldName = ((FieldError) error).getField();
