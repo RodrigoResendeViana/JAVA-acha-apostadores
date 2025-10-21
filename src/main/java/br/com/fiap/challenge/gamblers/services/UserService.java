@@ -9,6 +9,8 @@ import br.com.fiap.challenge.gamblers.interfaces.IUserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -18,14 +20,18 @@ import java.util.UUID;
 public class UserService implements IUserService {
     private final UserRepository userRepository;
     private final BCryptPasswordEncoder passwordEncoder;
+    private static final Logger log = LoggerFactory.getLogger(UserService.class);
 
     public UserDTO create(CreateUserDTO dto) {
+        LocalDateTime now = LocalDateTime.now();
         User user = User.builder()
                 .name(dto.getName())
                 .email(dto.getEmail())
                 .passwordHash(passwordEncoder.encode(dto.getPassword()))
                 .admin(dto.isAdmin())
-                .createdAt(LocalDateTime.now())
+                .createdAt(now)
+                .consentGiven(dto.isConsentGiven())
+                .consentAt(dto.isConsentGiven() ? now : null)
                 .build();
 
         user = userRepository.save(user);
@@ -65,6 +71,15 @@ public class UserService implements IUserService {
         userRepository.deleteById(id);
     }
 
+    public UserDTO setConsent(UUID id, boolean consent) {
+        User user = userRepository.findById(id).orElseThrow(() -> new NotFoundException("User not found"));
+        user.setConsentGiven(consent);
+        user.setConsentAt(consent ? LocalDateTime.now() : null);
+        user = userRepository.save(user);
+        log.info("Consent recorded for user {}: {} at {}", id, consent, user.getConsentAt());
+        return toDTO(user);
+    }
+
     private UserDTO toDTO(User user) {
         return UserDTO.builder()
                 .id(user.getId())
@@ -72,6 +87,8 @@ public class UserService implements IUserService {
                 .email(user.getEmail())
                 .admin(user.isAdmin())
                 .createdAt(user.getCreatedAt())
+                .consentGiven(user.isConsentGiven())
+                .consentAt(user.getConsentAt())
                 .build();
     }
 }

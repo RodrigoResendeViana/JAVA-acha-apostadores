@@ -18,4 +18,8 @@ public class UserDTO {
     private String email;
     private boolean admin;
     private LocalDateTime createdAt;
+
+    // Consent information
+    private boolean consentGiven;
+    private LocalDateTime consentAt;
 }

@@ -26,4 +26,7 @@ public class CreateUserDTO {
     private String password;
 
     private boolean admin;
+
+    // Optional consent flag at creation
+    private boolean consentGiven;
 }

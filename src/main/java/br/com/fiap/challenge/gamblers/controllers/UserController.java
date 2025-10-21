@@ -16,6 +16,9 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.UUID;
 import java.util.List;
@@ -26,6 +29,7 @@ import java.util.List;
 @Tag(name = "Users", description = "Operações relacionadas a usuários")
 public class UserController {
     private final IUserService userService;
+    private static final Logger log = LoggerFactory.getLogger(UserController.class);
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -41,18 +45,21 @@ public class UserController {
     @GetMapping("/{id}")
     @Operation(summary = "Buscar usuário por id", description = "Retorna um usuário pelo seu identificador")
     @ApiResponse(responseCode = "200", description = "Usuário encontrado", content = @Content(schema = @Schema(implementation = UserDTO.class)))
+    @PreAuthorize("hasAnyRole('USER','ADMIN')")
     public UserDTO findById(@PathVariable UUID id) {
         return userService.findById(id);
     }
 
     @GetMapping
     @Operation(summary = "Listar usuários", description = "Retorna a lista de usuários, filtrável por nome e email")
+    @PreAuthorize("hasRole('ADMIN')")
     public List<UserDTO> findAll(@org.springframework.web.bind.annotation.ModelAttribute UserFilterRequest filter) {
         return userService.findAll(filter.getName(), filter.getEmail());
     }
 
     @PutMapping("/{id}")
     @Operation(summary = "Atualizar usuário", description = "Atualiza os dados de um usuário existente")
+    @PreAuthorize("hasAnyRole('USER','ADMIN')")
     public UserDTO update(@PathVariable UUID id, @Valid @RequestBody UpdateUserDTO dto) {
         return userService.update(id, dto);
     }
@@ -60,7 +67,25 @@ public class UserController {
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @Operation(summary = "Remover usuário", description = "Remove um usuário pelo seu id")
+    @PreAuthorize("hasRole('ADMIN')")
     public void delete(@PathVariable UUID id) {
         userService.delete(id);
+    }
+
+    // New endpoint to register consent changes
+    @PostMapping("/{id}/consent")
+    @Operation(summary = "Registrar consentimento", description = "Registra ou remove o consentimento de um usuário")
+    @PreAuthorize("hasAnyRole('USER','ADMIN')")
+    public UserDTO setConsent(@PathVariable UUID id, @RequestBody ConsentRequest req) {
+        log.info("Consent update: userId={} consent={}", id, req.isConsent());
+        return userService.setConsent(id, req.isConsent());
+    }
+
+    // Simple DTO for consent endpoint
+    public static class ConsentRequest {
+        private boolean consent;
+
+        public boolean isConsent() { return consent; }
+        public void setConsent(boolean consent) { this.consent = consent; }
     }
 }

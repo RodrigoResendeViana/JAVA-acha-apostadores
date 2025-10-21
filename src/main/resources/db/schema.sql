@@ -16,7 +16,11 @@ CREATE TABLE IF NOT EXISTS users (
     email VARCHAR(255) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
     admin BOOLEAN NOT NULL DEFAULT FALSE,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    -- Consent fields to record user consent for LGPD
+    consent_given BOOLEAN NOT NULL DEFAULT FALSE,
+    consent_at TIMESTAMP NULL
 );
 
 -- Tabela de transações
