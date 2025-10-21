@@ -13,4 +13,5 @@ public interface IUserService {
     List<UserDTO> findAll(String name, String email);
     UserDTO update(UUID id, UpdateUserDTO dto);
     void delete(UUID id);
+    UserDTO setConsent(UUID id, boolean consent);
 }

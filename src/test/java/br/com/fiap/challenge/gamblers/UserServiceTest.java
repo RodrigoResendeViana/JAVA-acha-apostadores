@@ -50,7 +50,7 @@ class UserServiceTest {
                 .admin(false)
                 .createdAt(LocalDateTime.now())
                 .build();
-        createUserDTO = new CreateUserDTO("John Doe", "john@example.com", "password123", false);
+        createUserDTO = new CreateUserDTO("John Doe", "john@example.com", "password123", false, false);
         updateUserDTO = new UpdateUserDTO("Jane Doe", "jane@example.com", false);
     }
 

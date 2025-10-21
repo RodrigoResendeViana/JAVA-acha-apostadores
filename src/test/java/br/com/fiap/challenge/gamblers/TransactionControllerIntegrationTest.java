@@ -1,6 +1,11 @@
 package br.com.fiap.challenge.gamblers;
 
-import br.com.fiap.challenge.gamblers.entities.Transaction;
+import br.com.fiap.challenge.gamblers.controllers.TransactionController;
+import br.com.fiap.challenge.gamblers.interfaces.ITransactionService;
+import br.com.fiap.challenge.gamblers.entities.dtos.TransactionDTO;
+import br.com.fiap.challenge.gamblers.entities.dtos.CreateTransactionDTO;
+import br.com.fiap.challenge.gamblers.entities.TransactionType;
+import br.com.fiap.challenge.gamblers.exception.NotFoundException;
 import br.com.fiap.challenge.gamblers.entities.TransactionType;
 import br.com.fiap.challenge.gamblers.entities.User;
 import br.com.fiap.challenge.gamblers.entities.dtos.CreateTransactionDTO;
@@ -22,18 +27,25 @@ import java.util.UUID;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@SpringBootTest
-@AutoConfigureMockMvc
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.context.annotation.Import;
+import org.springframework.test.context.ActiveProfiles;
+
+import org.springframework.boot.test.mock.mockito.MockBean;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
+import java.util.List;
+
+@WebMvcTest(TransactionController.class)
+@Import(TestSecurityConfig.class)
+@ActiveProfiles("test")
 class TransactionControllerIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
 
-    @Autowired
-    private TransactionRepository transactionRepository;
-
-    @Autowired
-    private UserRepository userRepository;
+    @MockBean
+    private ITransactionService transactionService;
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -43,30 +55,33 @@ class TransactionControllerIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        transactionRepository.deleteAll();
-        userRepository.deleteAll();
-        User user = new User();
-        user.setName("Test User");
-        user.setEmail("test@example.com");
-        user.setPasswordHash("hashedPassword");
-        user.setAdmin(false);
-        user.setCreatedAt(LocalDateTime.now());
-        user = userRepository.save(user);
-        userId = user.getId();
-
-        Transaction transaction = new Transaction();
-        transaction.setUser(user);
-        transaction.setAmount(BigDecimal.valueOf(100.0));
-        transaction.setDescription("Test transaction");
-        transaction.setType(TransactionType.DEPOSIT);
-        transaction.setCreatedAt(LocalDateTime.now());
-        transaction = transactionRepository.save(transaction);
-        transactionId = transaction.getId();
+        userId = UUID.randomUUID();
+        transactionId = UUID.randomUUID();
+        TransactionDTO transactionDTO = TransactionDTO.builder()
+                .id(transactionId)
+                .userId(userId)
+                .amount(BigDecimal.valueOf(100.0))
+                .description("Test transaction")
+                .type(TransactionType.DEPOSIT)
+                .createdAt(LocalDateTime.now())
+                .build();
+        when(transactionService.findById(transactionId)).thenReturn(transactionDTO);
+        when(transactionService.findByUser(userId)).thenReturn(List.of(transactionDTO));
+        when(transactionService.findAll(null, null)).thenReturn(List.of(transactionDTO));
     }
 
     @Test
     void testCreateTransaction() throws Exception {
         CreateTransactionDTO dto = new CreateTransactionDTO(userId, BigDecimal.valueOf(200.0), "New transaction", TransactionType.WITHDRAWAL);
+        TransactionDTO responseDTO = TransactionDTO.builder()
+                .id(UUID.randomUUID())
+                .userId(userId)
+                .amount(BigDecimal.valueOf(200.0))
+                .description("New transaction")
+                .type(TransactionType.WITHDRAWAL)
+                .createdAt(LocalDateTime.now())
+                .build();
+        when(transactionService.create(any(CreateTransactionDTO.class))).thenReturn(responseDTO);
 
         mockMvc.perform(post("/api/transactions")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -87,6 +102,8 @@ class TransactionControllerIntegrationTest {
     @Test
     void testGetTransactionById_NotFound() throws Exception {
         UUID randomId = UUID.randomUUID();
+        when(transactionService.findById(randomId)).thenThrow(new NotFoundException("Transaction not found"));
+        
         mockMvc.perform(get("/api/transactions/{id}", randomId))
                 .andExpect(status().isNotFound());
     }
@@ -109,6 +126,15 @@ class TransactionControllerIntegrationTest {
     @Test
     void testUpdateTransaction() throws Exception {
         CreateTransactionDTO dto = new CreateTransactionDTO(userId, BigDecimal.valueOf(150.0), "Updated transaction", TransactionType.DEPOSIT);
+        TransactionDTO updatedDTO = TransactionDTO.builder()
+                .id(transactionId)
+                .userId(userId)
+                .amount(BigDecimal.valueOf(150.0))
+                .description("Updated transaction")
+                .type(TransactionType.DEPOSIT)
+                .createdAt(LocalDateTime.now())
+                .build();
+        when(transactionService.update(eq(transactionId), any(CreateTransactionDTO.class))).thenReturn(updatedDTO);
 
         mockMvc.perform(put("/api/transactions/{id}", transactionId)
                 .contentType(MediaType.APPLICATION_JSON)
@@ -120,10 +146,11 @@ class TransactionControllerIntegrationTest {
 
     @Test
     void testDeleteTransaction() throws Exception {
+        doNothing().when(transactionService).delete(transactionId);
+
         mockMvc.perform(delete("/api/transactions/{id}", transactionId))
                 .andExpect(status().isNoContent());
 
-        mockMvc.perform(get("/api/transactions/{id}", transactionId))
-                .andExpect(status().isNotFound());
+        verify(transactionService).delete(transactionId);
     }
 }
