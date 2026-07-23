@@ -170,7 +170,7 @@
 					<dependency>
 						<groupId>org.postgresql</groupId>
 						<artifactId>postgresql</artifactId>
-						<version>42.7.7</version>
+						<version>42.7.12</version>
 					</dependency>
 					<!-- Flyway DB plugin for PostgreSQL (required in Flyway 11+ modular builds) -->
 					<dependency>
